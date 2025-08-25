@@ -244,20 +244,23 @@ class BookBridgeProcessor:
             if len(desc_text.strip()) < 50:
                 return False
             
-            # Must have subject classification
-            subjects = work_data.get('subjects', [])
-            if len(subjects) < 2:
-                return False
-            
-            # Must have covers
-            covers = work_data.get('covers', [])
-            if not covers:
-                return False
-            
             # Must have authors
             authors = work_data.get('authors', [])
             if not authors:
                 return False
+            
+            # Modified publication date logic
+            first_publish_date = work_data.get('first_publish_date')
+            if first_publish_date:
+                # If date exists, apply 1940+ filter
+                pub_year = self.extract_year(first_publish_date)
+                if pub_year and pub_year < 1950:
+                    return False
+                # If we can't parse the year but field exists, keep it (might be malformed recent date)
+            
+            # If no publication date, keep the book (assume it might be recent)
+            # Other quality filters will still apply
+            return True
             
             # Popularity signals - must have at least one
             if not self.has_popularity_signals(work_data):
@@ -279,7 +282,7 @@ class BookBridgeProcessor:
         
         # Well-categorized (many subjects)
         subjects = work_data.get('subjects', [])
-        if len(subjects) >= 5:
+        if len(subjects) >= 3:
             return True
         
         # Multiple covers
@@ -291,7 +294,7 @@ class BookBridgeProcessor:
         english_lit_indicators = ['fiction', 'literature', 'novel', 'classic', 'award']
         subject_text = ' '.join(subjects).lower()
         if any(indicator in subject_text for indicator in english_lit_indicators):
-            if len(subjects) >= 3:
+            if len(subjects) >= 2:
                 return True
         
         return False
@@ -408,11 +411,15 @@ class BookBridgeProcessor:
         cover_id = covers[0] if covers else None
         cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else None
         
+        # Extract year from first_publish_date
+        first_publish_date = data.get('first_publish_date')
+        first_publish_year = self.extract_year(first_publish_date) if first_publish_date else None
+        
         return {
             'openlibrary_work_key': record['key'],
             'title': data.get('title', '').strip(),
             'description': desc_text.strip(),
-            'first_publish_year': data.get('first_publish_year'),
+            'first_publish_year': first_publish_year,
             'edition_count': len(data.get('edition_key', [])),
             'cover_id': cover_id,
             'cover_url': cover_url,

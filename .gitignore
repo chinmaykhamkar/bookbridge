@@ -8,3 +8,4 @@ processed_data/
 *.jsonl.gz.part.1
 *.jsonl.gz.part.2
 *.jsonl.gz.part.3
+.DS_Store
